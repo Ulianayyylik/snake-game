@@ -1,4 +1,4 @@
-name: Build Signed AAB for Google Play
+name: Build APK
 
 on:
   push:
@@ -11,38 +11,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            git zip unzip \
-            python3-pip autoconf libtool pkg-config zlib1g-dev \
-            libncurses5-dev libncursesw5-dev libtinfo5 cmake \
-            libffi-dev libssl-dev
+          sudo apt install -y python3-pip python3-dev build-essential git zip unzip openjdk-17-jdk
+          sudo apt install -y libffi-dev libssl-dev liblzma-dev
+          sudo apt install -y autoconf libtool pkg-config
+          sudo apt install -y zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install Cython and Buildozer
+      - name: Install Buildozer and Cython
         run: |
-          pip install --upgrade pip
-          pip install cython buildozer
+          pip3 install --upgrade pip
+          pip3 install cython buildozer
 
-      - name: Build with Buildozer
+      - name: Create .buildozer spec
         run: |
           buildozer init
-          buildozer android release 2>&1 | tee build.log
-          cat build.log
+          # Правим buildozer.spec для APK
+          sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
+          sed -i 's/android.api = 35/android.api = 33/' buildozer.spec
+          sed -i 's/android.minapi = 21/android.minapi = 21/' buildozer.spec
 
-      - name: Upload logs if failed
+      - name: Build APK
+        run: |
+          buildozer -v android debug 2>&1 | tee build.log
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: snake-game-apk
+          path: ./bin/*.apk
+
+      - name: Upload logs (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -50,10 +50,3 @@ jobs:
           path: |
             build.log
             .buildozer/logs/*.log
-
-      - name: Upload AAB
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: snake-game-aab
-          path: ./bin/*.aab
