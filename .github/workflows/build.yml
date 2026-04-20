@@ -15,38 +15,45 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y python3-pip python3-dev build-essential git zip unzip openjdk-17-jdk
-          sudo apt install -y libffi-dev libssl-dev liblzma-dev
-          sudo apt install -y autoconf libtool pkg-config
+          sudo apt install -y libffi-dev libssl-dev liblzma-dev autoconf libtool pkg-config
           sudo apt install -y zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake
 
-      - name: Install Buildozer and Cython
+      - name: Install Buildozer
         run: |
           pip3 install --upgrade pip
           pip3 install cython buildozer
 
-      - name: Create .buildozer spec
+      - name: Create config
         run: |
           buildozer init
-          # Правим buildozer.spec для APK
-          sed -i 's/#android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-          sed -i 's/android.api = 35/android.api = 33/' buildozer.spec
-          sed -i 's/android.minapi = 21/android.minapi = 21/' buildozer.spec
+          echo "" >> buildozer.spec
+          echo "# Manual fixes" >> buildozer.spec
+          echo "android.accept_sdk_license = True" >> buildozer.spec
+          echo "android.api = 30" >> buildozer.spec
+          echo "android.minapi = 21" >> buildozer.spec
+          echo "android.sdk = 30" >> buildozer.spec
+          echo "android.ndk = 23b" >> buildozer.spec
+          echo "android.archs = arm64-v8a, armeabi-v7a" >> buildozer.spec
 
       - name: Build APK
         run: |
-          buildozer -v android debug 2>&1 | tee build.log
+          buildozer android debug 2>&1 | tee build_output.txt
+          cat build_output.txt
+
+      - name: Show bin folder
+        run: |
+          ls -la bin/ || echo "bin folder not found"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: snake-game-apk
           path: ./bin/*.apk
+          if-no-files-found: warn
 
-      - name: Upload logs (if failed)
-        if: failure()
+      - name: Upload full output
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: buildozer-logs
-          path: |
-            build.log
-            .buildozer/logs/*.log
+          name: build-output
+          path: build_output.txt
