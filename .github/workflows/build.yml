@@ -1,5 +1,5 @@
 name: Build APK
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -15,15 +15,20 @@ jobs:
       
       - name: Build APK
         run: |
+          # Удаляем старый конфиг, если он есть
+          rm -f buildozer.spec
+          # Создаём новый
           buildozer init
+          # Правим настройки
           sed -i 's/android.api = 35/android.api = 30/' buildozer.spec
           sed -i 's/android.sdk = 35/android.sdk = 30/' buildozer.spec
           sed -i 's/# android.ndk = .*/android.ndk = 25b/' buildozer.spec
           sed -i 's/# android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
+          # Запускаем сборку
           yes | buildozer android debug
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: snake-game
-          path: bin/*.apk
+          name: snake-game-apk
+          path: ./bin/*.apk
